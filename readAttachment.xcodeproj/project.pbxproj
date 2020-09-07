@@ -24,6 +24,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		CF9E63FF25067BFD00C7622A /* m202008292129_testAttachments */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = m202008292129_testAttachments; sourceTree = "<group>"; };
 		CFC194242505F394002724C6 /* readAttachment */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = readAttachment; sourceTree = BUILT_PRODUCTS_DIR; };
 		CFC194272505F394002724C6 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		CFC194302505F93A002724C6 /* base64.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = base64.c; path = readAttachment.xcodeproj/base64.c; sourceTree = "<group>"; };
@@ -43,6 +44,7 @@
 		CFC1941B2505F394002724C6 = {
 			isa = PBXGroup;
 			children = (
+				CF9E63FF25067BFD00C7622A /* m202008292129_testAttachments */,
 				CFC194302505F93A002724C6 /* base64.c */,
 				CFC194272505F394002724C6 /* main.c */,
 				CFC194252505F394002724C6 /* Products */,
