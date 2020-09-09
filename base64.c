@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -15,14 +16,18 @@
  * support text in character sets other than ASCII, as well as attachments of
  * audio, video, images, and application programs.
  *
- * Each Base64 digit represents exactly 6 bits of data. Three 8-bit bytes 
- * (24 bits total) can therefore be represented by four 6-bit Base64 digits.
+ * Each Base64 digit represents 6 bits of data. Three 8-bit octets (bytes),
+ * 24 bits total, can therefore be represented by four 6-bit Base64 digits.
  * Wikipedia entries for MIME and Base64
+ *
+ * A useful website for encoding/decoding strings is www.base64decode.org.
  *
  *	07FEB2010	kds	Terminate each line with \n not \r\n
  *					to match encoding by Thunderbird
  *
  ******************************************************************************/
+
+extern int errno;
 
 // MIME's Base64 implementation uses the ASCII character set
 static char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -30,87 +35,108 @@ static char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                        "0123456789+/";
 
 /* forward definitions */
-static int compile64(unsigned char*,unsigned char*,int,FILE*);
+static void compile64(const unsigned char*,unsigned char*,const int);
 #ifdef DIAG
 static int hexcv(unsigned char*,unsigned char*);
 #endif
 
 /*******************************************************************************
  *
- * ???
- * Returns ???
+ * Encode binary input file writing result to output file.
+ * Returns 0  (Should be void funtion!)
  *
  ******************************************************************************/
 int encode64(
-    FILE* infd,			// input file to encode
-    FILE* oufd)			// encoded output file
+    FILE* infd,            // input file to encode
+    FILE* outfd)           // encoded output file
 {
-    int c;
-    int charcount = 0;
+    int charcount = 0;     // current number of chars in output line
+    size_t count;
     unsigned char iset[4];
     unsigned char oset[5];
-    unsigned char i1;
-    unsigned char i2;
-    unsigned char i3;
-    unsigned char i4;
 
-    while ((c = fread(iset, 1, 3, infd)) > 0)
+    while ((count = fread(iset, 1, 3, infd)) > 0)
 	{
-        i1 = (iset[0] & 0xfc) >> 2;
+        int i1 = (iset[0] & 0xfc) >> 2;
         oset[0] = base64[i1];
-        i2 = (iset[0] & 0x3) << 4;
-        if (c > 1)
-            {
+
+        int i2 = (iset[0] & 0x3) << 4;
+        int i3 = 0;
+        if (count > 1)
+        {
             i2 |= (iset[1] & 0xf0) >> 4;
-            i3  = (iset[1] & 0xf) << 2;
+            i3 = (iset[1] & 0xf) << 2;
             oset[2] = base64[i3];
-            }
-        else oset[2] = '=';
+        }
+        else
+            oset[2] = '=';
         oset[1] = base64[i2];
-        if (c > 2)
-            {
+
+        int i4 = 0;
+        if (count > 2)
+        {
             i3 |= (iset[2] & 0xc0) >> 6;
             i4 = (iset[2] & 0x3f);
             oset[2] = base64[i3];
             oset[3] = base64[i4];
             }
-        else oset[3] = '=';
+        else
+            oset[3] = '=';
+
         oset[4] = 0;
-        fprintf(oufd, "%s", oset);
+        if (fwrite(oset, 1, strlen((const char*)oset), outfd)
+                   != strlen((const char*)oset))
+            {
+            int errnum = errno;
+            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
+            exit(errnum);
+            }
 
 #ifdef DIAG
+        unsigned char itxt[28];
         hexcv(iset, itxt);
         printf("%s<>%s<>%d %d %d %d\n", itxt, oset, i1, i2, i3, i4);
 #endif
 
         // bump char count
         // if EOL output line terminator and reset char count
-        charcount += strlen((char*)oset);
+        charcount += strlen((const char*)oset);
         if (charcount > 71)
             {
-            fprintf(oufd, "\n");								/*09FEB2010*/
             charcount = 0;
+            if (fwrite("\n", 1, 1, outfd) != 1)
+                {
+                int errnum = errno;
+                fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
+                exit(errnum);
+                }
             }
 	}
-    
+
+    // terminate last line
     if (charcount)
-        fprintf(oufd, "\n");								/*09FEB2010*/
+        if (fwrite("\n", 1, 1, outfd) != 1)
+            {
+            int errnum = errno;
+            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
+            exit(errnum);
+            }
     return (0);
 }
 
 /*******************************************************************************
  *
- * ???
- * Returns ???
+ * Decode input base64 file writing results to output file.
+ * Returns 0 normally, or bad char if found
  *
  ******************************************************************************/
 int decode64(
-    FILE* infd,			// input encoded file
-    FILE* oufd)			// output decoded file
+    FILE* infd,          // input encoded file
+    FILE* outfd)         // output decoded file
 {
     int i;
-    int bcount = 3;		// number of bytes in binary
-    int ccount = 0;		// number of bytes in base64
+    int bcount = 3;      // number of bytes in binary
+    int ccount = 0;      // number of bytes in base64
     unsigned char oset[4];
     unsigned char iset[5];
     unsigned char xset[5];
@@ -124,13 +150,15 @@ int decode64(
         // skip if line feed or return
         if (*cchar == '\r' || *cchar == '\n')
             continue;
-        
+
+        // skip and dec octet count if pad char
         if (*cchar == '=')
             {
             bcount--;
             continue;	/* pad found */
             }
-        
+
+        // search for char in table
         iset[ccount] = *cchar;
         for (i = 0; i < 64; i++)
             {
@@ -141,15 +169,23 @@ int decode64(
                 }
             }
 
+        // check search failed
         if (i == 64)
-            return (*cchar);
+            return (*cchar);        // bad char
 
         ccount++;
         if (ccount > 3)
             {
             iset[4] = 0;
-            compile64(xset, oset, bcount, oufd);
-            
+            compile64(xset, oset, bcount);
+            if (fwrite(oset, 1, 3, outfd) != 3)
+                {
+                int errnum = errno;
+                fprintf(stderr, "Error writing tmp file: %s\n",
+                    strerror(errnum));
+                exit(errnum);
+                }
+
 #ifdef DIAG
             hexcv(oset, itxt);
             printf("%s<>%s<>", itxt, iset);
@@ -165,8 +201,14 @@ int decode64(
     if (ccount)
 	{
         iset[ccount] = 0;
-        compile64(xset, oset, bcount, oufd);
-        
+        compile64(xset, oset, bcount);
+        if (fwrite(oset, 1, bcount, outfd) != bcount)
+            {
+            int errnum = errno;
+            fprintf(stderr, "Error writing tmp file: %s\n", strerror(errnum));
+            exit(errnum);
+            }
+
 #ifdef DIAG
         hexcv(oset, itxt);
         printf("%s<>%s<>", itxt, iset);
@@ -180,32 +222,23 @@ int decode64(
 
 /*******************************************************************************
  *
- * ???
- * Returns ???
+ * Pack octets with data from sextets.
  *
  ******************************************************************************/
-int compile64(
-    unsigned char* iset,
-    unsigned char* oset,
-    int bcount,
-    FILE* oufd)
+void compile64(
+    const unsigned char* iset,	// input sextets
+    unsigned char* oset,        // output octets
+    const int bcount)		// number of octets
 {
-    *(oset+0) = *(iset+0) << 2;
-    *(oset+0) |= (*(iset+1) & 0x30) >> 4;
-    fwrite(oset+0, 1, 1, oufd);
+    oset[0] = iset[0] << 2 | (iset[1] & 0x30) >> 4;
     if (bcount == 1)
-        return (0);
+        return;
 
-    *(oset+1) = (*(iset+1) & 0xf) << 4;
-    *(oset+1) |= (*(iset+2)) >> 2;
-    fwrite(oset+1, 1, 1, oufd);
+    oset[1] = (iset[1] & 0xf) << 4 | (iset[2]) >> 2;
     if (bcount == 2)
-        return (0);
+        return;
     
-    *(oset+2) = (*(iset+2)) << 6;
-    *(oset+2) |= *(iset+3);
-    fwrite(oset+2, 1, 1, oufd);
-    return (0);
+    oset[2] = iset[2] << 6 | iset[3];
 }
 
 #ifdef DIAG
