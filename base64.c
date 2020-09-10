@@ -34,6 +34,9 @@ static char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                        "abcdefghijklmnopqrstuvwxyz"
                        "0123456789+/";
 
+// define for debugging output
+// #define DIAG 1
+
 /* forward definitions */
 static void compile64(const unsigned char*,unsigned char*,const int);
 #ifdef DIAG
@@ -47,8 +50,8 @@ static int hexcv(unsigned char*,unsigned char*);
  *
  ******************************************************************************/
 int encode64(
-    FILE* infd,            // input file to encode
-    FILE* outfd)           // encoded output file
+    FILE* infd,            // input octet file to encode
+    FILE* outfd)           // encoded output sextet file
 {
     int charcount = 0;     // current number of chars in output line
     size_t count;
@@ -138,17 +141,19 @@ int encode64(
  *
  ******************************************************************************/
 int decode64(
-    FILE* infd,          // input encoded file
-    FILE* outfd)         // output decoded file
+    FILE* infd,          // input encoded sextet file to decode
+    FILE* outfd)         // output decoded octet file
 {
     int bcount = 3;      // number of bytes in binary
     int ccount = 0;      // number of bytes in base64
     unsigned char oset[4];
-    unsigned char iset[5];
     unsigned char xset[5];
     unsigned char cchar[2];
     size_t freadcount;
     int i;
+#ifdef DIAG
+    unsigned char iset[5];
+#endif
 
     cchar[1] = 0;
 
@@ -173,8 +178,11 @@ int decode64(
             continue;	/* pad found */
             }
 
-        // search for char in table
+#ifdef DIAG
         iset[ccount] = *cchar;
+#endif
+
+        // search for char in table
         for (i = 0; i < 64; i++)
             {
             if (base64[i] == (*cchar & 0xff))
@@ -188,50 +196,51 @@ int decode64(
         if (i == 64)
             return (*cchar);        // bad char
 
+        // if processed 3 octets then write them out
         ccount++;
         if (ccount > 3)
             {
-            iset[4] = 0;
+            ccount = 0;
             compile64(xset, oset, bcount);
             if (fwrite(oset, 1, 3, outfd) != 3)
                 {
                 int errnum = errno;
-                fprintf(stderr, "Error writing tmp file: %s\n",
+                fprintf(stderr, "Error writing file: %s\n",
                     strerror(errnum));
                 exit(errnum);
                 }
-
 #ifdef DIAG
+            iset[4] = 0;
+            unsigned char itxt[26];
             hexcv(oset, itxt);
             printf("%s<>%s<>", itxt, iset);
-            for (i = 0; i < 4; i++)
-                printf("%d ", xset[i]);
-            printf("\n");
+            printf("%d %d %d %d \n", xset[0], xset[1], xset[2], xset[3]);
 #endif
-            
-            ccount = 0;
             }
-	}
+        }
 
+    // here finished processing input file
+    // if any octets processed write them out
     if (ccount)
-	{
-        iset[ccount] = 0;
+        {
         compile64(xset, oset, bcount);
         if (fwrite(oset, 1, bcount, outfd) != bcount)
             {
             int errnum = errno;
-            fprintf(stderr, "Error writing tmp file: %s\n", strerror(errnum));
+            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
             exit(errnum);
             }
 
 #ifdef DIAG
+        iset[ccount] = 0;
+        unsigned char itxt[26];
         hexcv(oset, itxt);
         printf("%s<>%s<>", itxt, iset);
         for (i = 0; i < ccount; i++)
             printf("%d ", xset[i]);
         printf("\n");
 #endif
-	}
+	    }
     return (0);
 }
 
@@ -241,9 +250,9 @@ int decode64(
  *
  ******************************************************************************/
 void compile64(
-    const unsigned char* iset,	// input sextets
-    unsigned char* oset,        // output octets
-    const int bcount)		// number of octets
+    const unsigned char* iset,   // input sextets
+    unsigned char* oset,         // output octets
+    const int bcount)            // number of octets
 {
     oset[0] = iset[0] << 2 | (iset[1] & 0x30) >> 4;
     if (bcount == 1)
