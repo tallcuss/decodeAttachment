@@ -56,7 +56,14 @@ int encode64(
     unsigned char oset[5];
 
     while ((count = fread(iset, 1, 3, infd)) > 0)
-	{
+        {
+        if (count > 3)
+            {
+            int errnum = errno;
+            fprintf(stderr, "Error reading file: %s\n", strerror(errnum));
+            exit(errnum);
+            }
+
         int i1 = (iset[0] & 0xfc) >> 2;
         oset[0] = base64[i1];
 
@@ -134,19 +141,27 @@ int decode64(
     FILE* infd,          // input encoded file
     FILE* outfd)         // output decoded file
 {
-    int i;
     int bcount = 3;      // number of bytes in binary
     int ccount = 0;      // number of bytes in base64
     unsigned char oset[4];
     unsigned char iset[5];
     unsigned char xset[5];
     unsigned char cchar[2];
+    size_t freadcount;
+    int i;
 
     cchar[1] = 0;
 
     // read next char from file
-    while (fread(cchar, 1, 1, infd) > 0)
+    while ((freadcount = fread(cchar, 1, 1, infd)) > 0)
 	{
+        if (freadcount > 1)
+            {
+            int errnum = errno;
+            fprintf(stderr, "Error reading file: %s\n", strerror(errnum));
+            exit(errnum);
+            }
+
         // skip if line feed or return
         if (*cchar == '\r' || *cchar == '\n')
             continue;
