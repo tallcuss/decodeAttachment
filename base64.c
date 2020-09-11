@@ -46,7 +46,11 @@ static int hexcv(unsigned char*,unsigned char*);
 /*******************************************************************************
  *
  * Encode binary input file writing result to output file.
- * Returns 0  (Should be void funtion!)
+ *
+ * Each output line has a maximum length of 72 characters and is terminated
+ * with a "\n" (line feed).
+ *
+ * Returns 0  (Should be void function!)
  *
  ******************************************************************************/
 int encode64(
@@ -58,6 +62,7 @@ int encode64(
     unsigned char iset[4];
     unsigned char oset[5];
 
+    // process next 3 octets from input file each time around loop
     while ((count = fread(iset, 1, 3, infd)) > 0)
         {
         if (count > 3)
@@ -106,12 +111,13 @@ int encode64(
         unsigned char itxt[28];
         hexcv(iset, itxt);
         printf("%s<>%s<>%d %d %d %d\n", itxt, oset, i1, i2, i3, i4);
+        printf("%d\n",charcount);
 #endif
 
         // bump char count
         // if EOL output line terminator and reset char count
         charcount += strlen((const char*)oset);
-        if (charcount > 71)
+        if (charcount >= 72)
             {
             charcount = 0;
             if (fwrite("\n", 1, 1, outfd) != 1)
@@ -137,6 +143,7 @@ int encode64(
 /*******************************************************************************
  *
  * Decode input base64 file writing results to output file.
+ *
  * Returns 0 normally, or bad char if found
  *
  ******************************************************************************/
@@ -157,7 +164,7 @@ int decode64(
 
     cchar[1] = 0;
 
-    // read next char from file
+    // process next char from input file each time around loop
     while ((freadcount = fread(cchar, 1, 1, infd)) > 0)
 	{
         if (freadcount > 1)
@@ -211,7 +218,7 @@ int decode64(
                 }
 #ifdef DIAG
             iset[4] = 0;
-            unsigned char itxt[26];
+            unsigned char itxt[26];
             hexcv(oset, itxt);
             printf("%s<>%s<>", itxt, iset);
             printf("%d %d %d %d \n", xset[0], xset[1], xset[2], xset[3]);

@@ -4,7 +4,7 @@
 
 //
 //  main.c
-//  readAttachment
+//  decodeAttachment
 //
 //  Created by Ron Heald on 7/9/20.
 //  Copyright © 2020 U3A. All rights reserved.
@@ -15,7 +15,8 @@ extern int errno;
 
 int main(int argc, const char * argv[]) {
 
-    // set working directory in Product->Scheme->Edit Scheme->Options
+    // input file containing email with attachments
+    // for Xcode set working directory in Product->Scheme->Edit Scheme->Options
     char* filename = "m202008292129_testAttachments";
     FILE* pinFile;
     FILE* ptmpFile;
