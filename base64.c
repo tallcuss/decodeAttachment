@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 /*******************************************************************************
  *
@@ -26,8 +25,6 @@
  *					to match encoding by Thunderbird
  *
  ******************************************************************************/
-
-extern int errno;
 
 // MIME's Base64 implementation uses the ASCII character set
 static char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -67,9 +64,8 @@ int encode64(
         {
         if (count > 3)
             {
-            int errnum = errno;
-            fprintf(stderr, "Error reading file: %s\n", strerror(errnum));
-            exit(errnum);
+            perror("fread_failed");
+            exit(EXIT_FAILURE);
             }
 
         int i1 = (iset[0] & 0xfc) >> 2;
@@ -102,9 +98,8 @@ int encode64(
         if (fwrite(oset, 1, strlen((const char*)oset), outfd)
                    != strlen((const char*)oset))
             {
-            int errnum = errno;
-            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
-            exit(errnum);
+            perror("fwrite_failed");
+            exit(EXIT_FAILURE);
             }
 
 #ifdef DIAG
@@ -122,9 +117,8 @@ int encode64(
             charcount = 0;
             if (fwrite("\n", 1, 1, outfd) != 1)
                 {
-                int errnum = errno;
-                fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
-                exit(errnum);
+                perror("fwrite_failed");
+                exit(EXIT_FAILURE);
                 }
             }
 	}
@@ -133,9 +127,8 @@ int encode64(
     if (charcount)
         if (fwrite("\n", 1, 1, outfd) != 1)
             {
-            int errnum = errno;
-            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
-            exit(errnum);
+            perror("fwrite_failed");
+            exit(EXIT_FAILURE);
             }
     return (0);
 }
@@ -164,14 +157,13 @@ int decode64(
 
     cchar[1] = 0;
 
-    // process next char from input file each time around loop
+    // process next sextet from input file each time around loop
     while ((freadcount = fread(cchar, 1, 1, infd)) > 0)
 	{
         if (freadcount > 1)
             {
-            int errnum = errno;
-            fprintf(stderr, "Error reading file: %s\n", strerror(errnum));
-            exit(errnum);
+            perror("fread_failed");
+            exit(EXIT_FAILURE);
             }
 
         // skip if line feed or return
@@ -211,10 +203,8 @@ int decode64(
             compile64(xset, oset, bcount);
             if (fwrite(oset, 1, 3, outfd) != 3)
                 {
-                int errnum = errno;
-                fprintf(stderr, "Error writing file: %s\n",
-                    strerror(errnum));
-                exit(errnum);
+                perror("fwrite_failed");
+                exit(EXIT_FAILURE);
                 }
 #ifdef DIAG
             iset[4] = 0;
@@ -233,9 +223,8 @@ int decode64(
         compile64(xset, oset, bcount);
         if (fwrite(oset, 1, bcount, outfd) != bcount)
             {
-            int errnum = errno;
-            fprintf(stderr, "Error writing file: %s\n", strerror(errnum));
-            exit(errnum);
+            perror("fwrite_failed");
+            exit(EXIT_FAILURE);
             }
 
 #ifdef DIAG
