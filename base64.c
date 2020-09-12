@@ -94,6 +94,7 @@ int encode64(
         else
             oset[3] = '=';
 
+        // write sextets to output file
         oset[4] = 0;
         if (fwrite(oset, 1, strlen((const char*)oset), outfd)
                    != strlen((const char*)oset))
@@ -110,7 +111,7 @@ int encode64(
 #endif
 
         // bump char count
-        // if EOL output line terminator and reset char count
+        // if EOL terminate line and reset char count
         charcount += strlen((const char*)oset);
         if (charcount >= 72)
             {
