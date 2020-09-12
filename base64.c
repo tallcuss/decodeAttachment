@@ -110,8 +110,8 @@ int encode64(
         printf("%d\n",charcount);
 #endif
 
-        // bump char count
-        // if EOL terminate line and reset char count
+        // bump chars in line count
+        // if EOL terminate line and reset count
         charcount += strlen((const char*)oset);
         if (charcount >= 72)
             {
